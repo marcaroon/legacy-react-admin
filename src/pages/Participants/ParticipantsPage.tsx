@@ -17,6 +17,7 @@ interface Participant {
   name: string;
   email: string;
   phone: string;
+  city: string;
   referralCode?: string;
   discountAmount?: number;
   createdAt: string;
@@ -43,7 +44,6 @@ export default function ParticipantsPage() {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  // Fetch data
   useEffect(() => {
     axios
       .get(`${API_BASE_URL}/participants`)
@@ -57,11 +57,9 @@ export default function ParticipantsPage() {
       .finally(() => setLoading(false));
   }, [API_BASE_URL]);
 
-  // Apply filters and search
   useEffect(() => {
     let filtered = [...participants];
 
-    // Search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(
@@ -77,7 +75,6 @@ export default function ParticipantsPage() {
       );
     }
 
-    // Referral filter
     if (filters.hasReferral === "yes") {
       filtered = filtered.filter((participant) => participant.referralCode);
     } else if (filters.hasReferral === "no") {
@@ -85,11 +82,9 @@ export default function ParticipantsPage() {
     }
 
     setFilteredData(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
   }, [filters, participants]);
 
-  // Sort data
-  // Sort data
   const sortedData = [...filteredData].sort((a, b) => {
     let aValue: any = a[sortField];
     let bValue: any = b[sortField];
@@ -102,17 +97,14 @@ export default function ParticipantsPage() {
       bValue = b[sortField];
     }
 
-    // Handle null/undefined values first
     if (aValue === null || aValue === undefined) aValue = "";
     if (bValue === null || bValue === undefined) bValue = "";
 
-    // Handle dates
     if (sortField === "createdAt") {
       aValue = new Date(aValue as string).getTime();
       bValue = new Date(bValue as string).getTime();
     }
 
-    // Handle strings
     if (typeof aValue === "string" && typeof bValue === "string") {
       aValue = aValue.toLowerCase();
       bValue = bValue.toLowerCase();
@@ -125,16 +117,12 @@ export default function ParticipantsPage() {
     }
   });
 
-  // Pagination
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedData = sortedData.slice(startIndex, startIndex + itemsPerPage);
 
-  // Handle sort
-  // Handle sort
   const handleSort = (field: keyof Participant | "registration") => {
     if (field === "registration") {
-      // Handle registration sorting separately since it's a nested object
       if (sortField === "registration") {
         setSortDirection(sortDirection === "asc" ? "desc" : "asc");
       } else {
@@ -151,7 +139,6 @@ export default function ParticipantsPage() {
     }
   };
 
-  // Export to Excel
   const handleExportExcel = async () => {
     try {
       const response = await axios.get(
@@ -159,7 +146,6 @@ export default function ParticipantsPage() {
         { responseType: "blob" }
       );
 
-      // Create blob link to download
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
@@ -177,7 +163,6 @@ export default function ParticipantsPage() {
     }
   };
 
-  // Reset filters
   const resetFilters = () => {
     setFilters({
       search: "",
@@ -307,6 +292,19 @@ export default function ParticipantsPage() {
                 >
                   <div
                     className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.05] p-1 -m-1 rounded"
+                    onClick={() => handleSort("phone")}
+                  >
+                    City{" "}
+                    {sortField === "phone" &&
+                      (sortDirection === "asc" ? "↑" : "↓")}
+                  </div>
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  <div
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.05] p-1 -m-1 rounded"
                     onClick={() => handleSort("referralCode")}
                   >
                     Referral Code{" "}
@@ -360,6 +358,9 @@ export default function ParticipantsPage() {
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     {participant.phone}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                    {participant.city || "-"}
                   </TableCell>
                   <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
                     <span
