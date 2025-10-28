@@ -8,10 +8,10 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
+import { Eye, Download, CheckCircle, Clock } from "lucide-react";
 
 interface Registration {
   id: number;
@@ -23,6 +23,9 @@ interface Registration {
   program_title: string;
   totalAmount: number;
   paymentStatus: string;
+  paymentMethod: string;
+  bankTransferProof: string;
+  bankTransferVerified: boolean;
   createdAt: string;
 }
 
@@ -113,7 +116,7 @@ export default function RegistrationsPage() {
     }
 
     setFilteredData(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
+    setCurrentPage(1);
   }, [filters, registrations]);
 
   // Sort data
@@ -121,13 +124,11 @@ export default function RegistrationsPage() {
     let aValue = a[sortField];
     let bValue = b[sortField];
 
-    // Handle dates
     if (sortField === "createdAt") {
       aValue = new Date(aValue as string).getTime();
       bValue = new Date(bValue as string).getTime();
     }
 
-    // Handle strings
     if (typeof aValue === "string" && typeof bValue === "string") {
       aValue = aValue.toLowerCase();
       bValue = bValue.toLowerCase();
@@ -169,7 +170,6 @@ export default function RegistrationsPage() {
         { responseType: "blob" }
       );
 
-      // Create blob link to download
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
@@ -198,23 +198,68 @@ export default function RegistrationsPage() {
     });
   };
 
-  if (loading) return <p className="p-4">Loading...</p>;
+  // Status badge component
+  const StatusBadge = ({ status }: { status: string }) => {
+    const styles = {
+      paid: "bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
+      pending: "bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800",
+      failed: "bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+      cancelled: "bg-gray-50 text-gray-700 border border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800",
+    };
+
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[status as keyof typeof styles] || styles.pending}`}>
+        {status}
+      </span>
+    );
+  };
+
+  // Payment method badge
+  const PaymentMethodBadge = ({ method, hasProof, verified }: { method: string; hasProof: boolean; verified: boolean }) => {
+    if (method === "va") {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800">
+          Virtual Account
+        </span>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-1">
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800">
+          Bank Transfer
+        </span>
+        {hasProof && (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+            verified 
+              ? "bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+              : "bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800"
+          }`}>
+            {verified ? <CheckCircle size={10} /> : <Clock size={10} />}
+            {verified ? "Verified" : "Pending"}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  if (loading) return <p className="p-4 text-sm">Loading...</p>;
 
   return (
     <>
-      <PageMeta title={`Registrations`} description="Registrations page" />
+      <PageMeta title="Registrations" description="Registrations page" />
       <PageBreadcrumb items={[{ label: "Registrations" }]} />
 
       {/* Filters */}
-      <div className="mb-6 p-4 bg-white dark:bg-white/[0.03] rounded-xl border border-gray-200 dark:border-white/[0.05]">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+      <div className="mb-4 p-4 bg-white dark:bg-white/[0.03] rounded-lg border border-gray-200 dark:border-white/[0.05]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Search
             </label>
             <input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-white/[0.1] rounded-md bg-white dark:bg-white/[0.03] text-gray-900 dark:text-white text-sm"
+              className="w-full px-2.5 py-1.5 text-xs border border-gray-300 dark:border-white/[0.1] rounded-md bg-white dark:bg-white/[0.03] text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Search by ID, name, email..."
               value={filters.search}
               onChange={(e) =>
@@ -223,11 +268,11 @@ export default function RegistrationsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Status
             </label>
             <select
-              className="w-full px-3 py-2 border border-gray-300 dark:border-white/[0.1] rounded-md bg-white dark:bg-white/[0.03] text-gray-900 dark:text-white text-sm"
+              className="w-full px-2.5 py-1.5 text-xs border border-gray-300 dark:border-white/[0.1] rounded-md bg-white dark:bg-white/[0.03] text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               value={filters.status}
               onChange={(e) =>
                 setFilters({ ...filters, status: e.target.value })
@@ -241,11 +286,11 @@ export default function RegistrationsPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Program
             </label>
             <select
-              className="w-full px-3 py-2 border border-gray-300 dark:border-white/[0.1] rounded-md bg-white dark:bg-white/[0.03] text-gray-900 dark:text-white text-sm"
+              className="w-full px-2.5 py-1.5 text-xs border border-gray-300 dark:border-white/[0.1] rounded-md bg-white dark:bg-white/[0.03] text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               value={filters.program}
               onChange={(e) =>
                 setFilters({ ...filters, program: e.target.value })
@@ -260,12 +305,12 @@ export default function RegistrationsPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Date From
             </label>
             <input
               type="date"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-white/[0.1] rounded-md bg-white dark:bg-white/[0.03] text-gray-900 dark:text-white text-sm"
+              className="w-full px-2.5 py-1.5 text-xs border border-gray-300 dark:border-white/[0.1] rounded-md bg-white dark:bg-white/[0.03] text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               value={filters.dateFrom}
               onChange={(e) =>
                 setFilters({ ...filters, dateFrom: e.target.value })
@@ -273,12 +318,12 @@ export default function RegistrationsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
               Date To
             </label>
             <input
               type="date"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-white/[0.1] rounded-md bg-white dark:bg-white/[0.03] text-gray-900 dark:text-white text-sm"
+              className="w-full px-2.5 py-1.5 text-xs border border-gray-300 dark:border-white/[0.1] rounded-md bg-white dark:bg-white/[0.03] text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               value={filters.dateTo}
               onChange={(e) =>
                 setFilters({ ...filters, dateTo: e.target.value })
@@ -287,34 +332,33 @@ export default function RegistrationsPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button
-            size="sm"
+          <button
             onClick={resetFilters}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-white/[0.05] dark:hover:bg-white/[0.1] dark:text-gray-300 rounded-md transition-colors"
           >
             Reset Filters
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Results info */}
-      <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+      <div className="mb-3 text-xs text-gray-600 dark:text-gray-400">
         Showing {paginatedData.length} of {filteredData.length} registrations
         {filteredData.length !== registrations.length &&
           ` (filtered from ${registrations.length} total)`}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="max-w-full overflow-x-auto">
           <Table>
-            <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
+            <TableHeader className="border-b border-gray-100 dark:border-white/[0.05] bg-gray-50 dark:bg-white/[0.02]">
               <TableRow>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  className="px-3 py-2 font-medium text-gray-600 text-start text-xs dark:text-gray-400"
                 >
                   <div
-                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.05] p-1 -m-1 rounded"
+                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
                     onClick={() => handleSort("registrationId")}
                   >
                     Registration ID{" "}
@@ -324,23 +368,23 @@ export default function RegistrationsPage() {
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  className="px-3 py-2 font-medium text-gray-600 text-start text-xs dark:text-gray-400"
                 >
                   <div
-                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.05] p-1 -m-1 rounded"
+                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
                     onClick={() => handleSort("contactName")}
                   >
-                    Name & Contact{" "}
+                    Contact{" "}
                     {sortField === "contactName" &&
                       (sortDirection === "asc" ? "↑" : "↓")}
                   </div>
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  className="px-3 py-2 font-medium text-gray-600 text-start text-xs dark:text-gray-400"
                 >
                   <div
-                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.05] p-1 -m-1 rounded"
+                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
                     onClick={() => handleSort("program_title")}
                   >
                     Program{" "}
@@ -350,10 +394,10 @@ export default function RegistrationsPage() {
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  className="px-3 py-2 font-medium text-gray-600 text-start text-xs dark:text-gray-400"
                 >
                   <div
-                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.05] p-1 -m-1 rounded"
+                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
                     onClick={() => handleSort("totalAmount")}
                   >
                     Amount{" "}
@@ -363,10 +407,23 @@ export default function RegistrationsPage() {
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  className="px-3 py-2 font-medium text-gray-600 text-start text-xs dark:text-gray-400"
                 >
                   <div
-                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.05] p-1 -m-1 rounded"
+                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+                    onClick={() => handleSort("paymentMethod")}
+                  >
+                    Payment{" "}
+                    {sortField === "paymentMethod" &&
+                      (sortDirection === "asc" ? "↑" : "↓")}
+                  </div>
+                </TableCell>
+                <TableCell
+                  isHeader
+                  className="px-3 py-2 font-medium text-gray-600 text-start text-xs dark:text-gray-400"
+                >
+                  <div
+                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
                     onClick={() => handleSort("paymentStatus")}
                   >
                     Status{" "}
@@ -376,20 +433,20 @@ export default function RegistrationsPage() {
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  className="px-3 py-2 font-medium text-gray-600 text-start text-xs dark:text-gray-400"
                 >
                   <div
-                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.05] p-1 -m-1 rounded"
+                    className="cursor-pointer hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
                     onClick={() => handleSort("createdAt")}
                   >
-                    Date Created{" "}
+                    Date{" "}
                     {sortField === "createdAt" &&
                       (sortDirection === "asc" ? "↑" : "↓")}
                   </div>
                 </TableCell>
                 <TableCell
                   isHeader
-                  className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                  className="px-3 py-2 font-medium text-gray-600 text-start text-xs dark:text-gray-400"
                 >
                   Actions
                 </TableCell>
@@ -397,70 +454,65 @@ export default function RegistrationsPage() {
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {paginatedData.map((reg) => (
-                <TableRow key={reg.id}>
-                  <TableCell className="px-4 py-3 text-gray-800 text-start text-theme-sm dark:text-gray-400">
-                    {reg.registrationId}
-                    <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
-                      MIDTRANS: {reg.midtransOrderId}
-                    </span>
+                <TableRow key={reg.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
+                  <TableCell className="px-3 py-2.5 text-gray-800 text-start text-xs dark:text-gray-400">
+                    <span className="font-mono font-medium">{reg.registrationId}</span>
+                    {reg.midtransOrderId && (
+                      <span className="block text-gray-500 text-[10px] dark:text-gray-500 mt-0.5">
+                        {reg.midtransOrderId}
+                      </span>
+                    )}
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                  <TableCell className="px-3 py-2.5 text-gray-500 text-start text-xs dark:text-gray-400">
                     <div>
-                      <span className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
+                      <span className="block font-medium text-gray-800 dark:text-white/90">
                         {reg.contactName}
                       </span>
-                      <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
+                      <span className="block text-[10px] text-gray-500 dark:text-gray-500 mt-0.5">
                         {reg.contactEmail}
                       </span>
-                      <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
+                      <span className="block text-[10px] text-gray-500 dark:text-gray-500">
                         {reg.contactPhone}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                    {reg.program_title}
+                  <TableCell className="px-3 py-2.5 text-gray-700 text-start text-xs dark:text-gray-400">
+                    <span className="line-clamp-2">{reg.program_title}</span>
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                    Rp {reg.totalAmount.toLocaleString()}
+                  <TableCell className="px-3 py-2.5 text-gray-700 text-start text-xs dark:text-gray-400 font-medium">
+                    Rp {reg.totalAmount.toLocaleString("id-ID")}
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                    <Badge
-                      size="sm"
-                      color={
-                        reg.paymentStatus === "paid"
-                          ? "success"
-                          : reg.paymentStatus === "pending"
-                          ? "warning"
-                          : "error"
-                      }
-                    >
-                      {reg.paymentStatus}
-                    </Badge>
+                  <TableCell className="px-3 py-2.5 text-gray-500 text-start text-xs dark:text-gray-400">
+                    <PaymentMethodBadge 
+                      method={reg.paymentMethod} 
+                      hasProof={!!reg.bankTransferProof}
+                      verified={reg.bankTransferVerified}
+                    />
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                    <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
+                  <TableCell className="px-3 py-2.5 text-gray-500 text-start text-xs dark:text-gray-400">
+                    <StatusBadge status={reg.paymentStatus} />
+                  </TableCell>
+                  <TableCell className="px-3 py-2.5 text-gray-500 text-start text-xs dark:text-gray-400">
+                    <span className="block text-[10px]">
                       {new Intl.DateTimeFormat("id-ID", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
+                        day: "2-digit",
+                        month: "short",
                         year: "numeric",
                       }).format(new Date(reg.createdAt))}
                     </span>
-                    <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
+                    <span className="block text-[10px] text-gray-500 dark:text-gray-500">
                       {new Intl.DateTimeFormat("id-ID", {
                         hour: "2-digit",
                         minute: "2-digit",
                       }).format(new Date(reg.createdAt))}
                     </span>
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
+                  <TableCell className="px-3 py-2.5 text-gray-500 text-start text-xs dark:text-gray-400">
                     <Link to={`/registrations/${reg.registrationId}`}>
-                      <Button
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        View Detail
-                      </Button>
+                      <button className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors">
+                        <Eye size={12} />
+                        View
+                      </button>
                     </Link>
                   </TableCell>
                 </TableRow>
@@ -470,15 +522,15 @@ export default function RegistrationsPage() {
         </div>
 
         {/* Pagination & Export */}
-        <div className="px-4 py-4 border-t border-gray-200 dark:border-white/[0.05] bg-gray-50 dark:bg-white/[0.02]">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
+        <div className="px-3 py-3 border-t border-gray-200 dark:border-white/[0.05] bg-gray-50 dark:bg-white/[0.02]">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600 dark:text-gray-400">
-                  Rows per page:
+                <label className="text-xs text-gray-600 dark:text-gray-400">
+                  Rows:
                 </label>
                 <select
-                  className="px-2 py-1 border border-gray-300 dark:border-white/[0.1] rounded bg-white dark:bg-white/[0.03] text-sm"
+                  className="px-2 py-1 text-xs border border-gray-300 dark:border-white/[0.1] rounded bg-white dark:bg-white/[0.03] focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   value={itemsPerPage}
                   onChange={(e) => {
                     setItemsPerPage(Number(e.target.value));
@@ -491,52 +543,48 @@ export default function RegistrationsPage() {
                   <option value={50}>50</option>
                 </select>
               </div>
-              <Button
+              <button
                 onClick={handleExportExcel}
-                className="bg-green-600 hover:bg-green-700 text-white text-sm"
-                size="sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors"
               >
-                Export to Excel
-              </Button>
+                <Download size={12} />
+                Export Excel
+              </button>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-xs text-gray-600 dark:text-gray-400">
                 Page {currentPage} of {totalPages}
               </span>
               <div className="flex gap-1">
-                <Button
-                  size="sm"
+                <button
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
-                  className="px-2 py-1 text-xs"
-                >
-                  ««
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-2 py-1 text-xs"
+                  className="px-2 py-1 text-xs border border-gray-300 dark:border-white/[0.1] rounded hover:bg-gray-100 dark:hover:bg-white/[0.05] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   «
-                </Button>
-                <Button
-                  size="sm"
+                </button>
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-2 py-1 text-xs border border-gray-300 dark:border-white/[0.1] rounded hover:bg-gray-100 dark:hover:bg-white/[0.05] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  ‹
+                </button>
+                <button
                   onClick={() => setCurrentPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-2 py-1 text-xs"
+                  className="px-2 py-1 text-xs border border-gray-300 dark:border-white/[0.1] rounded hover:bg-gray-100 dark:hover:bg-white/[0.05] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  »
-                </Button>
-                <Button
-                  size="sm"
+                  ›
+                </button>
+                <button
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
-                  className="px-2 py-1 text-xs"
+                  className="px-2 py-1 text-xs border border-gray-300 dark:border-white/[0.1] rounded hover:bg-gray-100 dark:hover:bg-white/[0.05] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  »»
-                </Button>
+                  »
+                </button>
               </div>
             </div>
           </div>
